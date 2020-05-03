@@ -57,7 +57,7 @@ defmodule BelpTest do
   end
 
   describe "eval/2" do
-    test "evaluate expression" do
+    test "evaluate boolean expression" do
       assert Belp.eval("true", []) == {:ok, true}
       assert Belp.eval("true", %{}) == {:ok, true}
       assert Belp.eval("false", %{}) == {:ok, false}
@@ -143,37 +143,13 @@ defmodule BelpTest do
 
   describe "eval!/1" do
     test "evaluate expression" do
-      assert Belp.eval!("true") == true
-      assert Belp.eval!("false") == false
-      assert Belp.eval!("true and true") == true
       assert Belp.eval!("true and false") == false
       assert Belp.eval!("true or false") == true
-      assert Belp.eval!("false or false") == false
-      assert Belp.eval!("(true and false) or true") == true
-      assert Belp.eval!("(true and false) or false") == false
-      assert Belp.eval!("false and false or true") == true
-      assert Belp.eval!("false and (false or true)") == false
-      assert Belp.eval!("!true") == false
-      assert Belp.eval!("not true") == false
-      assert Belp.eval!("!false") == true
-      assert Belp.eval!("not false") == true
-      assert Belp.eval!("not (false or true)") == false
-      assert Belp.eval!("not false or true") == true
-      assert Belp.eval!("true = false") == false
-      assert Belp.eval!("true = true") == true
-      assert Belp.eval!("false = false") == true
-      assert Belp.eval!("true != false") == true
-      assert Belp.eval!("true != true") == false
-      assert Belp.eval!("false != false") == false
     end
 
     test "undefined variable error" do
       assert_raise UndefinedVariableError, fn ->
         Belp.eval!("foo and bar")
-      end
-
-      assert_raise UndefinedVariableError, fn ->
-        Belp.eval!("true or bar")
       end
     end
 
@@ -181,81 +157,25 @@ defmodule BelpTest do
       assert_raise InvalidCharError, fn ->
         Belp.eval!("true && false")
       end
-
-      assert_raise InvalidCharError, fn ->
-        Belp.eval!("\n\ntrue ? false\n\n")
-      end
     end
 
     test "syntax error" do
       assert_raise SyntaxError, fn ->
         Belp.eval!("true Or false")
       end
-
-      assert_raise SyntaxError, fn ->
-        Belp.eval!("\n\ntrue false")
-      end
     end
   end
 
   describe "eval!/2" do
     test "evaluate expression" do
-      assert Belp.eval!("true", []) == true
-      assert Belp.eval!("true", %{}) == true
-      assert Belp.eval!("false", %{}) == false
       assert Belp.eval!("foo", foo: true) == true
       assert Belp.eval!("foo", %{foo: true}) == true
       assert Belp.eval!("foo", %{"foo" => true}) == true
-      assert Belp.eval!("foo", %{"foo" => ""}) == true
-      assert Belp.eval!("foo", %{"foo" => 0}) == true
-      assert Belp.eval!("foo", %{"foo" => false}) == false
-      assert Belp.eval!("foo", %{"foo" => nil}) == false
-      assert Belp.eval!("!foo", %{"foo" => true}) == false
-
-      assert Belp.eval!("(foo and bar) or baz", %{
-               "foo" => true,
-               "bar" => false,
-               "baz" => true
-             }) == true
-
-      assert Belp.eval!("(foo and bar) or baz", %{
-               "foo" => true,
-               "bar" => false,
-               "baz" => false
-             }) == false
-
-      assert Belp.eval!("not (foo or bar)", %{"foo" => false, "bar" => true}) ==
-               false
-
-      assert Belp.eval!("not foo or bar", %{"foo" => false, "bar" => true}) ==
-               true
-
-      assert Belp.eval!("foo = bar", %{"foo" => true, "bar" => false}) == false
-      assert Belp.eval!("foo = bar", %{"foo" => true, "bar" => true}) == true
-      assert Belp.eval!("foo = bar", %{"foo" => false, "bar" => false}) == true
-      assert Belp.eval!("foo != bar", %{"foo" => true, "bar" => false}) == true
-      assert Belp.eval!("foo != bar", %{"foo" => true, "bar" => true}) == false
-
-      assert Belp.eval!("foo != bar", %{"foo" => false, "bar" => false}) ==
-               false
-
-      assert Belp.eval!("foo = true", %{"foo" => true}) == true
-      assert Belp.eval!("true = foo", %{"foo" => true}) == true
-      assert Belp.eval!("foo = true", %{"foo" => false}) == false
-      assert Belp.eval!("true = foo", %{"foo" => false}) == false
-      assert Belp.eval!("foo = false", %{"foo" => false}) == true
-      assert Belp.eval!("false = foo", %{"foo" => false}) == true
-      assert Belp.eval!("foo = false", %{"foo" => true}) == false
-      assert Belp.eval!("false = foo", %{"foo" => true}) == false
     end
 
     test "undefined variable error" do
       assert_raise UndefinedVariableError, fn ->
         Belp.eval!("foo and bar", %{"foo" => true})
-      end
-
-      assert_raise UndefinedVariableError, fn ->
-        Belp.eval!("true or foo", %{"bar" => false})
       end
     end
 
@@ -263,19 +183,11 @@ defmodule BelpTest do
       assert_raise InvalidCharError, fn ->
         Belp.eval!("foo && bar")
       end
-
-      assert_raise InvalidCharError, fn ->
-        Belp.eval!("\n\nfoo ? bar\n\n")
-      end
     end
 
     test "syntax error" do
       assert_raise SyntaxError, fn ->
         Belp.eval!("foo Or bar")
-      end
-
-      assert_raise SyntaxError, fn ->
-        Belp.eval!("\n\nfoo bar")
       end
     end
   end
