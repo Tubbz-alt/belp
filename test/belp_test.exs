@@ -1,12 +1,17 @@
 defmodule BelpTest do
   use ExUnit.Case, async: true
 
-  alias Belp.{InvalidCharError, SyntaxError, UndefinedVariableError}
+  alias Belp.{
+    InvalidCharError,
+    InvalidOperationError,
+    SyntaxError,
+    UndefinedVariableError
+  }
 
   doctest Belp
 
   describe "eval/1" do
-    test "evaluate expression" do
+    test "evaluate expression with booleans" do
       assert Belp.eval("true") == {:ok, true}
       assert Belp.eval("false") == {:ok, false}
       assert Belp.eval("true and true") == {:ok, true}
@@ -29,6 +34,81 @@ defmodule BelpTest do
       assert Belp.eval("true != false") == {:ok, true}
       assert Belp.eval("true != true") == {:ok, false}
       assert Belp.eval("false != false") == {:ok, false}
+    end
+
+    test "evaluate expression with strings" do
+      assert Belp.eval(~s(true and '')) == {:ok, false}
+      assert Belp.eval(~s(true and 'foo')) == {:ok, true}
+      assert Belp.eval(~s('')) == {:ok, false}
+      assert Belp.eval(~s('foo')) == {:ok, true}
+      assert Belp.eval(~s(!'')) == {:ok, true}
+      assert Belp.eval(~s(!'foo')) == {:ok, false}
+      assert Belp.eval(~s(not '')) == {:ok, true}
+      assert Belp.eval(~s(not 'foo')) == {:ok, false}
+      assert Belp.eval(~s('foo' = 'foo')) == {:ok, true}
+      assert Belp.eval(~s('foo' != 'foo')) == {:ok, false}
+      assert Belp.eval(~s('foo' = 'bar')) == {:ok, false}
+      assert Belp.eval(~s('foo' != 'bar')) == {:ok, true}
+      assert Belp.eval(~s('foobar' ~ 'foo')) == {:ok, true}
+      assert Belp.eval(~s('foobar' ~ 'oba')) == {:ok, true}
+      assert Belp.eval(~s('foobar' ~ 'bar')) == {:ok, true}
+      assert Belp.eval(~s('FOOBAR' ~ 'bar')) == {:ok, true}
+      assert Belp.eval(~s('foobar' ~ 'baz')) == {:ok, false}
+      assert Belp.eval(~s('foobar' !~ 'foo')) == {:ok, false}
+      assert Belp.eval(~s('foobar' !~ 'oba')) == {:ok, false}
+      assert Belp.eval(~s('foobar' !~ 'bar')) == {:ok, false}
+      assert Belp.eval(~s('FOOBAR' !~ 'bar')) == {:ok, false}
+      assert Belp.eval(~s('foobar' !~ 'baz')) == {:ok, true}
+    end
+
+    test "invalid operation error" do
+      assert Belp.eval("'foo' ~ true") ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"~",
+                  left: "foo",
+                  right: true
+                }}
+
+      assert Belp.eval("true ~ 'foo'") ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"~",
+                  left: true,
+                  right: "foo"
+                }}
+
+      assert Belp.eval("'foo' !~ true") ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"!~",
+                  left: "foo",
+                  right: true
+                }}
+
+      assert Belp.eval("true !~ 'foo'") ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"!~",
+                  left: true,
+                  right: "foo"
+                }}
+
+      assert Belp.eval("true ~ false") ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"~",
+                  left: true,
+                  right: false
+                }}
+
+      assert Belp.eval("true !~ false") ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"!~",
+                  left: true,
+                  right: false
+                }}
     end
 
     test "undefined variable error" do
@@ -64,10 +144,9 @@ defmodule BelpTest do
       assert Belp.eval("foo", foo: true) == {:ok, true}
       assert Belp.eval("foo", %{foo: true}) == {:ok, true}
       assert Belp.eval("foo", %{"foo" => true}) == {:ok, true}
-      assert Belp.eval("foo", %{"foo" => ""}) == {:ok, true}
+      assert Belp.eval("foo", %{"foo" => ""}) == {:ok, false}
       assert Belp.eval("foo", %{"foo" => 0}) == {:ok, true}
       assert Belp.eval("foo", %{"foo" => false}) == {:ok, false}
-      assert Belp.eval("foo", %{"foo" => nil}) == {:ok, false}
       assert Belp.eval("!foo", %{"foo" => true}) == {:ok, false}
 
       assert Belp.eval("(foo and bar) or baz", %{
@@ -114,6 +193,40 @@ defmodule BelpTest do
       assert Belp.eval("false = foo", %{"foo" => false}) == {:ok, true}
       assert Belp.eval("foo = false", %{"foo" => true}) == {:ok, false}
       assert Belp.eval("false = foo", %{"foo" => true}) == {:ok, false}
+    end
+
+    test "invalid operation when trying to match with booleans" do
+      assert Belp.eval("'foo' ~ bar", %{bar: true}) ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"~",
+                  left: "foo",
+                  right: true
+                }}
+
+      assert Belp.eval("bar ~ 'foo'", %{bar: false}) ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"~",
+                  left: false,
+                  right: "foo"
+                }}
+
+      assert Belp.eval("'foo' !~ bar", %{bar: true}) ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"!~",
+                  left: "foo",
+                  right: true
+                }}
+
+      assert Belp.eval("bar !~ 'foo'", %{bar: false}) ==
+               {:error,
+                %InvalidOperationError{
+                  operation: :"!~",
+                  left: false,
+                  right: "foo"
+                }}
     end
 
     test "undefined variable error" do

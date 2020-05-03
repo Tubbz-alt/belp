@@ -3,12 +3,25 @@ defmodule Belp do
   Belp is a simple Boolean Expression Lexer and Parser.
   """
 
-  alias Belp.{AST, InvalidCharError, SyntaxError, UndefinedVariableError}
+  alias Belp.AST
+
+  alias Belp.{
+    InvalidCharError,
+    InvalidOperationError,
+    SyntaxError,
+    UndefinedVariableError
+  }
+
+  alias Belp.Utils
 
   @typedoc """
   A type that describes which primitives can be used as expression.
   """
   @type expr :: String.t() | charlist
+
+  @typedoc """
+  """
+  @type value :: boolean | String.t()
 
   @doc """
   Evaluates the given expression.
@@ -32,15 +45,18 @@ defmodule Belp do
   """
   @spec eval(
           expr,
-          Keyword.t(as_boolean(any))
-          | %{optional(atom | String.t()) => as_boolean(any)}
+          Keyword.t(value) | %{optional(atom | String.t()) => value}
         ) ::
           {:ok, boolean}
           | {:error,
-             InvalidCharError.t() | SyntaxError.t() | UndefinedVariableError.t()}
+             InvalidCharError.t()
+             | InvalidOperationError.t()
+             | SyntaxError.t()
+             | UndefinedVariableError.t()}
   def eval(expr, vars \\ %{}) do
-    with {:ok, _tokens, ast} <- parse(expr) do
-      AST.eval(ast, sanitize_vars(vars))
+    with {:ok, _tokens, ast} <- parse(expr),
+         {:ok, term} <- AST.eval(ast, sanitize_vars(vars)) do
+      {:ok, Utils.cast_boolean(term)}
     end
   end
 
@@ -67,8 +83,8 @@ defmodule Belp do
   """
   @spec eval!(
           expr,
-          Keyword.t(as_boolean(any))
-          | %{optional(atom | String.t()) => as_boolean(any)}
+          Keyword.t(value)
+          | %{optional(atom | String.t()) => value}
         ) :: boolean | no_return
   def eval!(expr, vars \\ %{}) do
     expr |> eval(vars) |> may_bang!()
@@ -195,6 +211,8 @@ defmodule Belp do
   end
 
   defp sanitize_vars(vars) do
-    Map.new(vars, fn {key, value} -> {to_string(key), !!value} end)
+    for {key, value} <- vars, !is_nil(value), into: Map.new() do
+      {to_string(key), value}
+    end
   end
 end
